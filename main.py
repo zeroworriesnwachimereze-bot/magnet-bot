@@ -1,0 +1,38 @@
+import os
+print("Starting...", flush=True)
+from flask import Flask
+from threading import Thread
+from telegram import InlineKeyboardButton as Btn, InlineKeyboardMarkup as Mk
+from telegram.ext import Application as App, CommandHandler as Cmd, CallbackQueryHandler as Cbq
+TOKEN=os.environ.get("BOT_TOKEN")
+print(f"TOKEN OK:{bool(TOKEN)}", flush=True)
+ADDR="0x55d398326f99059fF775485246999027B3197955"
+users={}
+fapp=Flask(__name__)
+@fapp.route('/')
+def home():
+ return "OK"
+def run():
+ fapp.run(host="0.0.0.0",port=10000)
+def menu():
+ return Mk([[Btn("Deposit",callback_data="dep"),Btn("Balance",callback_data="bal")]])
+def get(uid):
+ if uid not in users:
+  users[uid]={"b":0}
+ return users[uid]
+async def start(update,context):
+ get(update.effective_user.id)
+ await update.message.reply_text(f"USDT:\n{ADDR}",reply_markup=menu())
+async def btns(update,context):
+ q=update.callback_query
+ await q.answer()
+ await q.edit_message_text(f"Bal:{get(q.from_user.id)['b']}\n{ADDR}",reply_markup=menu())
+def main():
+ Thread(target=run,daemon=True).start()
+ a=App.builder().token(TOKEN).build()
+ a.add_handler(Cmd("start",start))
+ a.add_handler(Cbq(btns))
+ print("Bot polling...", flush=True)
+ a.run_polling()
+if __name__=="__main__":
+ main()

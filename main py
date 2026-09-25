@@ -1,0 +1,58 @@
+import os
+from flask import Flask
+from threading import Thread
+from telegram import InlineKeyboardButton as Btn
+from telegram import InlineKeyboardMarkup as Mk
+from telegram.ext import Application as App
+from telegram.ext import CommandHandler as Cmd
+from telegram.ext import CallbackQueryHandler as Cbq
+
+TOKEN=os.environ.get("BOT_TOKEN")
+ADDR="0x55d398326f99059fF775485246999027B3197955"
+
+users={}
+fapp=Flask(__name__)
+@fapp.route('/')
+def home():
+ return "Live"
+def run():
+ p=int(os.environ.get("PORT",10000))
+ fapp.run(host="0.0.0.0",port=p)
+def menu():
+ return Mk([
+ [Btn("Deposit",callback_data="dep"),Btn("Balance",callback_data="bal")],
+ [Btn("Plans",callback_data="plans"),Btn("Withdraw",callback_data="with")],
+ [Btn("Referral",callback_data="ref")]])
+def get(uid):
+ if uid not in users:
+  users[uid]={"b":0,"i":0,"p":0}
+ return users[uid]
+async def start(update,context):
+ get(update.effective_user.id)
+ await update.message.reply_text(f"Welcome!\nUSDT BEP20:\n{ADDR}",reply_markup=menu())
+async def btns(update,context):
+ q=update.callback_query
+ await q.answer()
+ u=get(q.from_user.id)
+ d=q.data
+ if d=="dep":
+  await q.edit_message_text(f"Send USDT BEP20:\n{ADDR}\nMin 10 USDT",reply_markup=menu())
+ elif d=="bal":
+  await q.edit_message_text(f"Bal:{u['b']} USDT\nInv:{u['i']}\nProf:{u['p']}",reply_markup=menu())
+ elif d=="plans":
+  t="PLANS:\n50->10% 10d\n100->12% 15d\n500->15% 20d"
+  await q.edit_message_text(t,reply_markup=menu())
+ elif d=="with":
+  await q.edit_message_text(f"Bal:{u['b']} USDT\nSend addr to admin",reply_markup=menu())
+ elif d=="ref":
+  link=f"https://t.me/{context.bot.username}?start={q.from_user.id}"
+  await q.edit_message_text(f"Ref Link:\n{link}\nEarn 10%",reply_markup=menu())
+def main():
+ Thread(target=run,daemon=True).start()
+ a=App.builder().token(TOKEN).build()
+ a.add_handler(Cmd("start",start))
+ a.add_handler(Cbq(btns))
+ print("Bot started!")
+ a.run_polling()
+if __name__=="__main__":
+ main()

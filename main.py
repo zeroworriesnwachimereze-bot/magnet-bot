@@ -1,41 +1,37 @@
 import os
-import logging
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from flask import Flask
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-
-logging.basicConfig(level=logging.INFO)
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = os.environ.get("BOT_TOKEN")
-if not TOKEN:
-    raise ValueError("BOT_TOKEN not set!")
+app_web = Flask(__name__)
 
-# Fake web server for Render
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running!")
+@app_web.route('/')
+def home():
+    return "Bot is Live!"
 
-def run_fake_server():
+def run_web():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), Handler)
-    server.serve_forever()
+    app_web.run(host="0.0.0.0", port=port)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Welcome! Send me magnet links 🧲")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"You sent: {update.message.text}\nBot is working!")
+async def handle_magnet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if "magnet:" in text.lower():
+        await update.message.reply_text(f"🧲 Magnet received!\n\nTesting OK! Next: download feature.")
+    else:
+        await update.message.reply_text("Send magnet: link please.")
 
 def main():
-    threading.Thread(target=run_fake_server, daemon=True).start()
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Bot starting...")
-    app.run_polling()
+    threading.Thread(target=run_web, daemon=True).start()
+    print("Bot starting...", flush=True)
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_magnet))
+    application.run_polling()
 
 if __name__ == "__main__":
     main()

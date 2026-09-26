@@ -3,3 +3,4 @@ tgcrypto
 pymongo[srv]
 dnspython
 motor
+requests

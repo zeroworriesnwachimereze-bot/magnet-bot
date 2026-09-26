@@ -1,10 +1,10 @@
 pyrogram
 tgcrypto
 pymongo[srv]
-dnspython
 motor
 requests
 python-telegram-bot
 aiohttp
 bs4
 lxml
+dnspython==2.4.2

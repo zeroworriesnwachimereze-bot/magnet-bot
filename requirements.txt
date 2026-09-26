@@ -4,3 +4,7 @@ pymongo[srv]
 dnspython
 motor
 requests
+python-telegram-bot
+aiohttp
+bs4
+lxml

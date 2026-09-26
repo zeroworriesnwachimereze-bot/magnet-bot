@@ -1,33 +1,24 @@
-import os, time, threading, logging
-from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+import time
+import threading
+import asyncio
+from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from flask import Flask
 
-logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ.get("BOT_TOKEN")
-WALLET = "0x55d398326f99059f775485246999027B3197955"
-print(f"TOKEN OK: {bool(TOKEN)}", flush=True)
-
+WALLET = os.environ.get("WALLET") or "0x55d398326f99059fF775485246999027B3197955"
 app = Flask(__name__)
+users = {}
 
 @app.route('/')
 def home():
     return "Bot is running"
 
-users = {}
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id not in users:
-        users[user_id] = {"balance": 0}
-    keyboard = [
-        [InlineKeyboardButton("Deposit", callback_data="deposit")],
-        [InlineKeyboardButton("Balance", callback_data="balance")],
-        [InlineKeyboardButton("Referral", callback_data="referral")],
-        [InlineKeyboardButton("Plans", callback_data="plans")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Welcome!", reply_markup=reply_markup)
+    users.setdefault(user_id, {"balance": 0})
+    await update.message.reply_text("Welcome!")
 
 async def balance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -38,19 +29,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    bal = users.get(user_id, {"balance": 0})["balance"]
-    if query.data == "deposit":
+    data = query.data
+    if data == "deposit":
         await query.message.reply_text(f"Send to {WALLET}")
-    elif query.data == "balance":
+    elif data == "balance":
+        bal = users.get(user_id, {"balance": 0})["balance"]
         await query.message.reply_text(f"Balance: {bal}")
-    elif query.data == "referral":
-        bot_username = (await context.bot.get_me()).username
-        link = f"https://t.me/{bot_username}?start={user_id}"
+    elif data == "referral":
+        username = (await context.bot.get_me()).username
+        link = f"https://t.me/{username}?start={user_id}"
         await query.message.reply_text(f"Your link: {link}")
-    elif query.data == "plans":
+    elif data == "plans":
         await query.message.reply_text("Plans coming soon")
 
 def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     while True:
         try:
             print("Starting Bot polling...", flush=True)
@@ -60,7 +54,7 @@ def run_bot():
             application.add_handler(CallbackQueryHandler(button_handler))
             application.run_polling()
         except Exception as e:
-            print(f"Bot crashed: {e}, restarting in 5s...", flush=True)
+            print(f"Crashed {e}", flush=True)
             time.sleep(5)
 
 if __name__ == '__main__':

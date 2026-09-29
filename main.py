@@ -202,6 +202,7 @@ async def run_bot():
     app_bot.add_handler(CommandHandler("start",start))
     app_bot.add_handler(CommandHandler("admin",admin_panel))
     app_bot.add_handler(CallbackQueryHandler(button_handler))
+        app_bot.add_handler(CommandHandler("credit", credit))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
     await app_bot.initialize(); await app_bot.start(); await app_bot.updater.start_polling()
     asyncio.create_task(auto_check_deposits(app_bot)); asyncio.create_task(daily_profit_task(app_bot))

@@ -3,120 +3,139 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
+# --- Keep Render LIVE ---
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot Running OK")
+        self.send_response(200); self.end_headers(); self.wfile.write(b"Magnet V9 FINAL 2% LIVE")
     def log_message(self, *a): pass
 
 def run_server():
-    port = int(os.getenv("PORT", "10000"))
-    HTTPServer(("0.0.0.0", port), H).serve_forever()
+    HTTPServer(("0.0.0.0", int(os.getenv("PORT","10000"))), H).serve_forever()
 threading.Thread(target=run_server, daemon=True).start()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "5698222295"))
-OWNER_WALLET = os.getenv("OWNER_WALLET", "TRYourWalletHere")
+BOT_TOKEN = os.getenv("BOT_TOKEN","")
+ADMIN_ID = int(os.getenv("ADMIN_ID","7016458590"))
+OWNER_WALLET = os.getenv("OWNER_WALLET","0x79f805319c0ff9b99eaf8a717110e468a496f9d8")
 DB_FILE = "users.json"
 users = {}
 
 def load_db():
     global users
     if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r") as f: users = json.load(f)
+        try: users = json.load(open(DB_FILE,"r"))
         except: users = {}
-    else: users = {}
 def save_db():
-    with open(DB_FILE, "w") as f: json.dump(users, f)
+    json.dump(users, open(DB_FILE,"w"))
 load_db()
 
 def get_user(uid):
-    uid = str(uid)
-    if uid not in users: users[uid] = {"balance": 0.0, "investments": [], "refs": [], "ref_by": None}
+    uid=str(uid)
+    if uid not in users:
+        users[uid]={"balance":0.0,"investments":[],"refs":[],"ref_by":None}
     return users[uid]
 
+PLANS = """🔥 Magnet V9 FINAL
+📈 2% DAILY EARNING
+
+VIP1 $5 → $10
+VIP2 $10 → $20
+VIP3 $15 → $30
+VIP4 $20 → $40
+VIP5 $25 → $50
+
+💰 Earning: 2% Daily for 35 Days
+✅ Deposit AUTO
+💸 Withdraw Manual 1% Min $2
+👥 Referral 5%"""
+
+def main_kb():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💰 Deposit AUTO", callback_data="deposit"), InlineKeyboardButton("💵 Balance", callback_data="balance")],
+        [InlineKeyboardButton("📈 Plans 2% Daily", callback_data="plans"), InlineKeyboardButton("📊 Invest", callback_data="invest")],
+        [InlineKeyboardButton("💸 Withdraw", callback_data="withdraw"), InlineKeyboardButton("👥 Referral Link", callback_data="referral")],
+        [InlineKeyboardButton("📊 My Investments", callback_data="myinv")]
+    ])
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    args = context.args
-    u = get_user(uid)
-    if args and u.get("ref_by") is None:
-        ref = str(args[0])
-        if ref!= uid and ref in users:
-            u["ref_by"] = ref
+    uid=str(update.effective_user.id); u=get_user(uid)
+    if context.args and not u.get("ref_by"):
+        ref=str(context.args[0])
+        if ref!=uid and ref in users:
+            u["ref_by"]=ref
             if uid not in users[ref]["refs"]:
-                users[ref]["refs"].append(uid)
-                users[ref]["balance"] = float(users[ref].get("balance", 0)) + 0.5
-                save_db()
-    bal = round(u.get("balance", 0), 2)
-    kb = [[InlineKeyboardButton("Balance", callback_data="balance"), InlineKeyboardButton("Invest", callback_data="invest")],[InlineKeyboardButton("Referral", callback_data="referral"), InlineKeyboardButton("Withdraw", callback_data="withdraw")]]
-    await update.message.reply_text(f"Welcome Boss! Balance: ${bal}\nInvest min $10 - 2% daily 35 days", reply_markup=InlineKeyboardMarkup(kb))
+                users[ref]["refs"].append(uid); users[ref]["balance"]+=0.5
+    save_db()
+    await update.message.reply_text(f"🔥 Welcome Boss! Balance: ${round(u['balance'],2)}\nInvest min $5 - 2% daily 35 days\n\n💼 Wallet:\n`{OWNER_WALLET}`\n\n{PLANS}", parse_mode="Markdown", reply_markup=main_kb())
+
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id!= ADMIN_ID:
+        await update.message.reply_text(f"Not admin\nYour ID: {update.effective_user.id}\nAdmin should be {ADMIN_ID}")
+        return
+    await update.message.reply_text(f"👑 Admin Panel\nUsers: {len(users)}\n\nUse:\n/credit user_id amount\nEx: /credit 5698222295 5")
 
 async def credit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id!= ADMIN_ID:
         await update.message.reply_text("Not admin"); return
-    if len(context.args) < 2:
+    if len(context.args)<2:
         await update.message.reply_text("Use: /credit user_id amount"); return
-    target_id = str(context.args[0])
-    try: amt = float(context.args[1])
-    except: await update.message.reply_text("Amount must be number"); return
-    u = get_user(target_id)
-    u["balance"] = float(u.get("balance", 0)) + amt
-    save_db()
-    new_bal = round(u["balance"], 2)
-    await update.message.reply_text(f"Credited {amt} to {target_id} New Bal {new_bal}")
-    try: await context.bot.send_message(chat_id=int(target_id), text=f"Wallet credited {amt} New Bal {new_bal} Send /start")
+    tid=str(context.args[0]); amt=float(context.args[1])
+    u=get_user(tid); u["balance"]+=amt; save_db()
+    await update.message.reply_text(f"✅ Credited ${amt} to {tid} New Bal ${round(u['balance'],2)}")
+    try: await context.bot.send_message(chat_id=int(tid), text=f"💰 Deposit ${amt} confirmed! Now do /start and Invest")
     except: pass
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; await q.answer()
-    uid = str(q.from_user.id); u = get_user(uid); data = q.data
-    if data == "balance":
-        bal = round(u.get("balance", 0), 2)
-        txt = f"Balance: ${bal}"
-        for inv in u.get("investments", []): txt += f"\n${inv['amount']} Earned ${round(inv.get('earned',0),2)} Day {inv.get('days_passed',0)}/35"
-        await q.edit_message_text(txt)
-    elif data == "invest": await q.edit_message_text(f"Send: Invest 10 Wallet: {OWNER_WALLET}")
-    elif data == "withdraw": await q.edit_message_text(f"Balance: ${round(u.get('balance',0),2)} Send: Withdraw 10 Min 10 Fee 1%")
-    elif data == "referral":
-        botname = context.bot.username; link = f"https://t.me/{botname}?start={uid}"; cnt = len(u.get("refs", []))
-        await q.edit_message_text(f"Link: {link} Refs: {cnt}")
+async def btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q=update.callback_query; await q.answer()
+    uid=str(q.from_user.id); u=get_user(uid); d=q.data
+    if d=="balance": await q.edit_message_text(f"💵 Balance: ${round(u['balance'],2)}\nEarning 2% Daily", reply_markup=main_kb())
+    elif d=="deposit": await q.edit_message_text(f"💰 Deposit AUTO BEP20\nSend BNB to:\n`{OWNER_WALLET}`\n\nMin $5", parse_mode="Markdown", reply_markup=main_kb())
+    elif d=="plans": await q.edit_message_text(PLANS, reply_markup=main_kb())
+    elif d=="invest": await q.edit_message_text(f"📊 Invest - 2% Daily\nWallet:\n`{OWNER_WALLET}`\n\nYour Bal: ${round(u['balance'],2)}\n\nType: Invest 5 (Min $5)\nVIP1 $5 VIP2 $10 VIP3 $15 VIP4 $20 VIP5 $25", parse_mode="Markdown", reply_markup=main_kb())
+    elif d=="withdraw": await q.edit_message_text(f"💸 Withdraw Manual 1% Min $2\nBal ${round(u['balance'],2)}\nType: Withdraw 2", reply_markup=main_kb())
+    elif d=="referral":
+        link=f"https://t.me/{context.bot.username}?start={uid}"
+        await q.edit_message_text(f"👥 Referral 5%\nLink: {link}\nRefs {len(u.get('refs',[]))}", reply_markup=main_kb())
+    elif d=="myinv":
+        if not u["investments"]: await q.edit_message_text("No investments yet. Do Invest 5", reply_markup=main_kb())
+        else:
+            txt="📊 My Investments 2% Daily\n\n"
+            for inv in u["investments"]: txt+=f"${inv['amount']} Earn ${round(inv['earned'],2)} Day {inv['days_passed']}/35\n"
+            await q.edit_message_text(txt, reply_markup=main_kb())
 
-async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip(); uid = str(update.effective_user.id); u = get_user(uid); low = text.lower()
+async def msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    t=update.message.text.strip(); uid=str(update.effective_user.id); u=get_user(uid); low=t.lower()
     if low.startswith("invest"):
         try:
-            amt = float(text.split()[1])
-            if amt < 10: await update.message.reply_text("Min 10"); return
-            bal = float(u.get("balance", 0))
-            if bal < amt: await update.message.reply_text(f"Low bal {bal}"); return
-            u["balance"] = bal - amt; u["investments"].append({"amount": amt, "earned": 0.0, "days_passed": 0}); save_db()
-            await update.message.reply_text(f"Invested {amt}")
-        except: await update.message.reply_text("Send Invest 10")
+            amt=float(t.split()[1])
+            if amt<5: await update.message.reply_text("Min $5"); return
+            if u["balance"]<amt: await update.message.reply_text(f"Low bal ${round(u['balance'],2)} Deposit to {OWNER_WALLET} first"); return
+            u["balance"]-=amt; u["investments"].append({"amount":amt,"earned":0.0,"days_passed":0}); save_db()
+            await update.message.reply_text(f"✅ Invested ${amt} 2% Daily for 35 Days", reply_markup=main_kb())
+        except: await update.message.reply_text("Use: Invest 5")
     elif low.startswith("withdraw"):
         try:
-            amt = float(text.split()[1])
-            if amt < 10: await update.message.reply_text("Min 10"); return
-            bal = float(u.get("balance", 0)); fee = amt * 0.01; total = amt + fee
-            if bal < total: await update.message.reply_text(f"Need {total} have {bal}"); return
-            u["balance"] = bal - total; save_db()
-            await context.bot.send_message(chat_id=ADMIN_ID, text=f"WD User {uid} Amt {amt}"); await update.message.reply_text(f"Request sent {amt}")
-        except: await update.message.reply_text("Send Withdraw 10")
+            amt=float(t.split()[1])
+            if amt<2: await update.message.reply_text("Min $2"); return
+            fee=amt*0.01
+            if u["balance"]<amt+fee: await update.message.reply_text(f"Need ${amt+fee} you have ${round(u['balance'],2)}"); return
+            u["balance"]-=amt+fee; save_db()
+            await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 WITHDRAW User {uid} Amount ${amt} Fee ${fee}")
+            await update.message.reply_text(f"✅ Withdraw ${amt} requested Fee 1% ${fee}")
+        except: await update.message.reply_text("Use: Withdraw 2")
 
-async def daily_job(context: ContextTypes.DEFAULT_TYPE):
+async def daily(context: ContextTypes.DEFAULT_TYPE):
     for uid in list(users.keys()):
-        for inv in users[uid].get("investments", []):
-            if inv.get("days_passed", 0) < 35:
-                profit = inv["amount"] * 0.02; inv["earned"] = inv.get("earned", 0) + profit; inv["days_passed"] = inv.get("days_passed", 0) + 1; users[uid]["balance"] = float(users[uid].get("balance", 0)) + profit
+        for inv in users[uid].get("investments",[]):
+            if inv["days_passed"]<35:
+                p=inv["amount"]*0.02; inv["earned"]+=p; inv["days_passed"]+=1; users[uid]["balance"]+=p
     save_db()
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+if __name__=="__main__":
+    app=ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("credit", credit))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
-    if app.job_queue: app.job_queue.run_repeating(daily_job, interval=86400, first=10)
+    app.add_handler(CallbackQueryHandler(btn))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
+    if app.job_queue: app.job_queue.run_repeating(daily, interval=86400, first=10)
     app.run_polling(drop_pending_updates=True)

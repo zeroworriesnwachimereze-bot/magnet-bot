@@ -212,4 +212,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
     if app.job_queue:
         app.job_queue.run_repeating(daily_job, interval=86400, first=10)
-    app.run_polling()
+        app.run_polling(drop_pending_updates=True)

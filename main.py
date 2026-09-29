@@ -1,6 +1,7 @@
-import json, os, asyncio, logging
+import json, os, logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+import asyncio
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5698222295"))
@@ -80,7 +81,7 @@ async def credit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Not admin")
         return
     if len(context.args) < 2:
-        await update.message.reply_text("Use: /credit user_id amount")
+        await update.message.reply_text("Use: /credit user_id amount Ex /credit 5698222295 5")
         return
     try:
         target_id = str(context.args[0])
@@ -188,31 +189,27 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             await update.message.reply_text("Send Withdraw 10")
 
-async def daily_profit_task(app):
-    while True:
-        await asyncio.sleep(86400)
-        for uid in list(users.keys()):
-            for inv in users[uid].get("investments", []):
-                dp = inv.get("days_passed", 0)
-                if dp < 35:
-                    amt = inv.get("amount", 0)
-                    profit = amt * 0.02
-                    inv["earned"] = inv.get("earned", 0) + profit
-                    inv["days_passed"] = dp + 1
-                    cur = users[uid].get("balance", 0)
-                    users[uid]["balance"] = cur + profit
-        save_db(users)
-
-async def run_bot():
-    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    app_bot.add_handler(CommandHandler("start", start))
-    app_bot.add_handler(CommandHandler("admin", admin_panel))
-    app_bot.add_handler(CommandHandler("credit", credit))
-    app_bot.add_handler(CallbackQueryHandler(button_handler))
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
-    asyncio.create_task(daily_profit_task(app_bot))
-    await app_bot.run_polling()
+async def daily_job(context: ContextTypes.DEFAULT_TYPE):
+    for uid in list(users.keys()):
+        for inv in users[uid].get("investments", []):
+            dp = inv.get("days_passed", 0)
+            if dp < 35:
+                amt = inv.get("amount", 0)
+                profit = amt * 0.02
+                inv["earned"] = inv.get("earned", 0) + profit
+                inv["days_passed"] = dp + 1
+                cur = users[uid].get("balance", 0)
+                users[uid]["balance"] = cur + profit
+    save_db(users)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(run_bot())
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CommandHandler("credit", credit))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
+    if app.job_queue:
+        app.job_queue.run_repeating(daily_job, interval=86400, first=10)
+    app.run_polling()

